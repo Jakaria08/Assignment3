@@ -117,7 +117,9 @@ if __name__ == '__main__':
                  #'Naive Bayes Ones': algs.NaiveBayes({'usecolumnones': True}),
                  #'Linear Regression': algs.LinearRegressionClass(),
                  #'Logistic Regression': algs.LogitReg({'regularizer': 'l2', 'regwgt': 0.00}),
-                 #'Neural Network': algs.NeuralNet({'epochs': 100})
+                 #'Neural Network': algs.NeuralNet({'epochs': 100}),
+                 'KernelLogitReg': algs.KernelLogitReg(),
+                 #'KernelLogitReg1': algs.KernelLogitReg({'kernel': 'hamming'})
                 }
     numalgs = len(classalgs)
 
@@ -144,15 +146,27 @@ if __name__ == '__main__':
             params = parameters[p]
             for learnername, learner in classalgs.items():
                 # Reset learner for new parameters
-                learner.reset(params)
-                print ('Running learner = ' + learnername + ' on parameters ' + str(learner.getparams()))
-                # Train model
-                learner.learn(trainset[0], trainset[1])
-                # Test model
-                predictions = learner.predict(testset[0])
-                error = geterror(testset[1], predictions)
-                print ('Error for ' + learnername + ': ' + str(error))
-                errors[learnername][p,r] = error
+                if learnername == 'KernelLogitReg1':
+                    trainset1, testset1 = dtl.load_census(trainsize,testsize)
+                    learner.reset(params)
+                    print ('Running learner = ' + learnername + ' on parameters ' + str(learner.getparams()))
+                    # Train model
+                    learner.learn(trainset1[0], trainset1[1])
+                    # Test model
+                    predictions = learner.predict(testset1[0])
+                    error = geterror(testset1[1], predictions)
+                    print ('Error for ' + learnername + ': ' + str(error))
+                    errors[learnername][p,r] = error
+                else:
+                    learner.reset(params)
+                    print ('Running learner = ' + learnername + ' on parameters ' + str(learner.getparams()))
+                    # Train model
+                    learner.learn(trainset[0], trainset[1])
+                    # Test model
+                    predictions = learner.predict(testset[0])
+                    error = geterror(testset[1], predictions)
+                    print ('Error for ' + learnername + ': ' + str(error))
+                    errors[learnername][p,r] = error
     
 
     for learnername, learner in classalgs.items():
@@ -168,5 +182,7 @@ if __name__ == '__main__':
         learner.reset(parameters[bestparams])
         print ('Best parameters for ' + learnername + ': ' + str(learner.getparams()))
         print ('Average error for ' + learnername + ': ' + str(besterror) + ' +- ' + str(np.std(errors[learnername][bestparams,:])/math.sqrt(numruns)))
-
-    cross_validate(5, trainset[0], trainset[1], classalgs_fold)
+        
+################# Cross validation k fold
+        
+    #cross_validate(5, trainset[0], trainset[1], classalgs_fold)

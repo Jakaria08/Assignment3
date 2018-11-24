@@ -143,7 +143,8 @@ class NaiveBayes(Classifier):
             probabilites = np.ones(self.numclasses)
             for k in range(self.numclasses):
                 for j in range(Xtest.shape[1]):
-                    
+                    if j == Xtest.shape[1] - 1 and self.params['usecolumnones'] == True:
+                        continue
                     probabilites[k] *= ((1 / (np.sqrt(2*np.pi * np.power(self.stds[k,j],2))))
                     * np.exp(-(np.power((Xtest[i,j]-self.means[k,j]),2)/(2*np.power(self.stds[k,j],2)))))
                 #marginal probability
@@ -214,7 +215,7 @@ class LogitReg(Classifier):
         h = utils.sigmoid(np.dot(X, theta)+self.bias)
         
         if 'regwgt' in self.params:
-            reg = ((self.params['regwgt'] / 2) * np.sum(theta**2))
+            reg = (self.params['regwgt'] / 2) * theta
             grad =  np.dot(X.T,(h - y)) + reg
         else:
             grad =  np.dot(X.T,(h - y))
@@ -399,8 +400,73 @@ class KernelLogitReg(LogitReg):
     """
     def __init__(self, parameters={}):
         # Default: no regularization
-        self.params = {'regwgt': 0.0, 'regularizer': 'None', 'kernel': 'None'}
+        self.params = {'regwgt': 0.0, 'regularizer': 'None', 'kernel': 'linear'}
+        self.num_of_center = 50
+        self.iteration = 10000
+        self.learning_rate = .1
+        self.n = None
         self.reset(parameters)
+        
+    def kernel_logit_cost(self, theta, X, y):
+        """
+        Compute cost for logistic regression using theta as the parameters.
+        """
+        numsamples = X.shape[0]
+        cost = 0.0
+
+        ### YOUR CODE HERE
+        
+        h = utils.sigmoid(np.dot(X, theta))
+        
+        if 'regwgt' in self.params:
+            reg = (self.params['regwgt'] / (2 * numsamples)) * np.sum(theta**2)
+            cost = (1 / numsamples) * (np.dot(-y.T,(np.log(h))) - np.dot((1 - y).T,(np.log(1 - h)))) + reg
+        else:
+            cost = (1 / numsamples) * (np.dot(-y.T,(np.log(h))) - np.dot((1 - y).T,(np.log(1 - h))))
+            
+        ### END YOUR CODE
+
+        return cost
+
+    def kernel_logit_cost_grad(self, theta, X, y):
+        """
+        Compute gradients of the cost with respect to theta.
+        """
+
+        h = utils.sigmoid(np.dot(X, theta))
+        
+        if 'regwgt' in self.params:
+            reg = (self.params['regwgt'] / 2) * theta
+            grad =  np.dot(X.T,(h - y)) + reg
+        else:
+            grad =  np.dot(X.T,(h - y))
+        
+    
+        ### END YOUR CODE
+        
+        return grad
+        
+    def kernel(self, X, N):
+        if self.params['kernel'] == 'linear':
+            return np.dot(X, N.T)
+        elif self.params['kernel'] == 'hamming':
+            Ktrain = np.zeros((X.shape[0], N.shape[0]))
+            for i in range(X.shape[0]):
+                hamming_distance = np.zeros(N.shape[0])
+                for j in range(N.shape[0]):
+                    if type(X[i]) is str:
+                        y = 0
+                        z = X[i] ^ N[j]
+                        while z:
+                            y += 1
+                            z &= z - 1
+                        hamming_distance[j] = y
+                    else:
+                        hamming_distance[j] = 0 if X[i] == N[j] else 1
+                Ktrain[i] = hamming_distance
+            return Ktrain
+        else:
+            return X;
 
     def learn(self, Xtrain, ytrain):
         """
@@ -411,18 +477,32 @@ class KernelLogitReg(LogitReg):
         Ktrain = None
 
         ### YOUR CODE HERE
-
+        #Creating centers and sending to kernel
+        
+        self.n = Xtrain[0:self.num_of_center]
+        Ktrain = self.kernel(Xtrain, self.n)
         ### END YOUR CODE
 
         self.weights = np.zeros(Ktrain.shape[1],)
+        self.reg_weight = self.params['regwgt']
 
         ### YOUR CODE HERE
-
+        for i in range(self.iteration):
+            self.weights -= (self.learning_rate / (i+1)) * self.kernel_logit_cost_grad(self.weights, Ktrain, ytrain)
+            #print("Loss: "+str(self.kernel_logit_cost(self.weights, Ktrain, ytrain)))
         ### END YOUR CODE
 
         self.transformed = Ktrain # Don't delete this line. It's for evaluation.
 
     # TODO: implement necessary functions
+    def predict(self, Xtest):
+        Ktest = self.kernel(Xtest, self.n)
+        ytest = np.zeros(Ktest.shape[0], dtype=int)
+        preds = utils.sigmoid(np.dot(self.weights, Ktest.T))
+        ytest[preds < .5] = 0
+        ytest[preds >= .5] = 1
+
+        return ytest
 
 
 # ======================================================================
