@@ -42,6 +42,7 @@ parametersc = (
                       )
 numparamsc = len(parametersc)
 errorsc = {}
+errorscT = {}
 
 def cross_validate(K, X, Y, classalgs_fold):
     data_range = (int)(X.shape[0]/K)
@@ -106,36 +107,45 @@ def cross_validate(K, X, Y, classalgs_fold):
         #best_algorithm = classalgs_fold[learnername]
         #return best_algorithm
         
-def cross_validate_stratified(K, X, Y, classalgs_fold):
-    data_range = (int)(X.shape[0]/K)
+def cross_validate_stratified(K, X, Y, classalgs_fold): #### For 5 fold 
+    data_range = ((int)(X.shape[0]/K))-2
     fold = list()
     yfold = list()
+    XT = list()
     trainset = []
     validationset = []
     ytrain = []
     yvalid = []
     check = None
     for learnername in classalgs_fold:
-        errorsc[learnername] = np.zeros((numparamsc,K))
+        errorscT[learnername] = np.zeros((numparamsc,K))
 
-    for i in range(K):
-        fold.append(X[i*data_range:data_range*(i+1),:])
-        yfold.append(Y[i*data_range:data_range*(i+1)])
+        Z = np.c_[ X, Y ]  
+        idx = Z[:, 9] == 0
+        X0 = Z[idx]
+        idx = Z[:, 9] == 1
+        X1 = Z[idx]
+
+        percentage0 = int(np.rint((X0.shape[0]/X.shape[0])*100))
+        percentage1 = int(np.rint((X1.shape[0]/X.shape[0])*100))
+        
+        for i in range(K):
+            XT.append(np.concatenate((X0[i*percentage0:percentage0*(i+1)],X1[i*percentage1:percentage1*(i+1)]),axis = 0))
         
     for k in range(K):
         check = 1
         for j in range(K):
             if j!= k:
                 if check:
-                    trainset = fold[k]
-                    ytrain = yfold[k]
+                    trainset = XT[k][:,0:9]
+                    ytrain = XT[k][:,9:10]
                     check = False
                 else:
-                    trainset = np.concatenate((trainset,fold[k]), axis = 0) 
-                    ytrain = np.concatenate((ytrain,yfold[k]), axis = 0)
+                    trainset = XT[k][:,0:9] 
+                    ytrain = XT[k][:,9:10]
             else:
-                validationset = fold[k]
-                yvalid = yfold[k]
+                validationset = XT[k][:,0:9] 
+                yvalid =  XT[k][:,9:10]
                 
         for p in range(numparamsc):
             params = parametersc[p]
@@ -150,13 +160,13 @@ def cross_validate_stratified(K, X, Y, classalgs_fold):
                 predictions = learner.predict(validationset)
                 error = geterror(yvalid, predictions)
                 print ('Error for ' + learnername + ': ' + str(error))
-                errorsc[learnername][p,k] = error
+                errorscT[learnername][p,k] = error
             
     for learnername, learner in classalgs_fold.items():
-        besterror = np.mean(errorsc[learnername][0,:])
+        besterror = np.mean(errorscT[learnername][0,:])
         bestparams = 0
         for p in range(numparamsc):
-            aveerror = np.mean(errorsc[learnername][p,:])
+            aveerror = np.mean(errorscT[learnername][p,:])
             if aveerror < besterror:
                 besterror = aveerror
                 bestparams = p
@@ -164,7 +174,7 @@ def cross_validate_stratified(K, X, Y, classalgs_fold):
         # Extract best parameters
         learner.reset(parametersc[bestparams])
         print ('(Cross Validation Stratified) Best parameters for ' + learnername + ': ' + str(learner.getparams()))
-        print ('(Cross Validation Stratified) Average error for ' + learnername + ': ' + str(besterror) + ' +- ' + str(np.std(errorsc[learnername][bestparams,:])/math.sqrt(K)))
+        print ('(Cross Validation Stratified) Average error for ' + learnername + ': ' + str(besterror) + ' +- ' + str(np.std(errorscT[learnername][bestparams,:])/math.sqrt(K)))
                     
         #best_algorithm = classalgs_fold[learnername]
         #return best_algorithm
@@ -173,16 +183,16 @@ def cross_validate_stratified(K, X, Y, classalgs_fold):
 if __name__ == '__main__':
     trainsize = 5000
     testsize = 5000
-    numruns = 1
+    numruns = 5
 
     classalgs = {'Random': algs.Classifier(),
-                 #'Naive Bayes': algs.NaiveBayes({'usecolumnones': False}),
-                 #'Naive Bayes Ones': algs.NaiveBayes({'usecolumnones': True}),
-                 #'Linear Regression': algs.LinearRegressionClass(),
-                 #'Logistic Regression': algs.LogitReg({'regularizer': 'l2', 'regwgt': 0.00}),
-                 #'Neural Network': algs.NeuralNet({'epochs': 1000}),
-                 #'KernelLogitReg': algs.KernelLogitReg(),
-                 #'KernelLogitReg1': algs.KernelLogitReg({'kernel': 'hamming'}),
+                 'Naive Bayes': algs.NaiveBayes({'usecolumnones': False}),
+                 'Naive Bayes Ones': algs.NaiveBayes({'usecolumnones': True}),
+                 'Linear Regression': algs.LinearRegressionClass(),
+                 'Logistic Regression': algs.LogitReg({'regularizer': 'l2', 'regwgt': 0.00}),
+                 'Neural Network': algs.NeuralNet({'epochs': 1000}),
+                 'KernelLogitReg': algs.KernelLogitReg(),
+                 'KernelLogitReg1': algs.KernelLogitReg({'kernel': 'hamming'}),
                  'Neural Network Two Hidden Layer': algs.NeuralNetTwoHidden({'epochs': 1000})
                 }
     numalgs = len(classalgs)
@@ -249,5 +259,5 @@ if __name__ == '__main__':
         
 ################# Cross validation k fold
         
-    #cross_validate(5, trainset[0], trainset[1], classalgs_fold)
-    #cross_validate_stratified(5, trainset[0], trainset[1], classalgs_fold)
+    cross_validate(5, trainset[0], trainset[1], classalgs_fold)
+    cross_validate_stratified(5, trainset[0], trainset[1], classalgs_fold)
