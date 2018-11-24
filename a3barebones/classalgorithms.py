@@ -594,6 +594,11 @@ class NeuralNetTwoHidden(Classifier):
         self.w_input = np.random.randn(Xtrain.shape[1], self.params['nh'],) 
         self.w_hidden_hidden = np.random.randn(self.params['nh'],self.params['nh'])
         self.w_output = np.random.randn(self.params['nh'], 1)
+        eps_stable = 10**-8
+        
+        cache_out = np.zeros(self.w_output.shape)
+        cache_hidden_hidden = np.zeros(self.w_hidden_hidden.shape)
+        cache_input = np.zeros(self.w_input.shape)
         
         for iter in range(self.params['epochs']):
             shuffle = np.arange(Xtrain.shape[0])
@@ -601,9 +606,18 @@ class NeuralNetTwoHidden(Classifier):
             Xtrain = Xtrain[shuffle, :]
             ytrain = ytrain[shuffle]
             nabla_input, nabla_hidden_hidden, nabla_output = self.backprop(Xtrain, ytrain)
-            self.w_output = self.w_output - self.params['stepsize'] * nabla_output
-            self.w_hidden_hidden = self.w_hidden_hidden - self.params['stepsize'] * nabla_hidden_hidden
-            self.w_input = self.w_input - self.params['stepsize'] * nabla_input
+            
+            ##########################  RMSPROP  ##################################
+            
+            cache_out = 0.9 * cache_out + 0.1 * nabla_output ** 2
+            cache_hidden_hidden = 0.9 * cache_hidden_hidden + 0.1 * nabla_hidden_hidden ** 2
+            cache_input = 0.9 * cache_input + 0.1 * nabla_input ** 2
+            #self.w_output = self.w_output - self.params['stepsize'] * nabla_output
+            self.w_output -= ((self.params['stepsize'] * nabla_output) / np.sqrt(cache_out + eps_stable))
+            self.w_hidden_hidden -= ((self.params['stepsize'] * nabla_hidden_hidden) / np.sqrt(cache_hidden_hidden + eps_stable))
+            self.w_input -= ((self.params['stepsize'] * nabla_input) / np.sqrt(cache_input + eps_stable))
+            #self.w_hidden_hidden = self.w_hidden_hidden - self.params['stepsize'] * nabla_hidden_hidden
+            #self.w_input = self.w_input - self.params['stepsize'] * nabla_input
             hidden, hidden_hidden, output = self.feedforward(Xtrain)
             #print("Loss: \n" + str(np.mean(np.square(ytrain - output ))))
                 

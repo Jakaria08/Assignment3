@@ -120,7 +120,7 @@ if __name__ == '__main__':
                  #'Neural Network': algs.NeuralNet({'epochs': 1000}),
                  #'KernelLogitReg': algs.KernelLogitReg(),
                  #'KernelLogitReg1': algs.KernelLogitReg({'kernel': 'hamming'}),
-                 'Neural Network Two Hidden Layer': algs.NeuralNetTwoHidden({'epochs': 1000})
+                 'Neural Network Two Hidden Layer': algs.NeuralNetTwoHidden({'epochs': 10000})
                 }
     numalgs = len(classalgs)
 
