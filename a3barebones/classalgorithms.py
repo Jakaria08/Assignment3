@@ -520,7 +520,7 @@ class NeuralNetTwoHidden(Classifier):
         self.params = {'nh': 16,
                     'transfer': 'sigmoid',
                     'stepsize': 0.01,
-                    'epochs': 1000}
+                    'epochs': 100}
         self.reset(parameters)
 
     def reset(self, parameters):
@@ -562,8 +562,7 @@ class NeuralNetTwoHidden(Classifier):
         a_hidden_out, a_hidden_hidden, a_output_out = self.feedforward(x)
         # backward propagate through the network
         output_layer_error = a_output_out - y # error in output # D3
-        output_delta = np.multiply(np.transpose(output_layer_error), self.dtransfer(a_output_out)) #5000*1
-        output_delta = output_delta.reshape(-1,1)
+        output_delta = np.multiply(output_layer_error, self.dtransfer(a_output_out)) #5000*1
         
         hidden_hidden_layer_error = np.dot(output_delta, np.transpose(self.w_output)) #5000*16
         hidden_hidden_delta = np.multiply(hidden_hidden_layer_error, self.dtransfer(a_hidden_hidden)) #5000*16 
@@ -583,8 +582,8 @@ class NeuralNetTwoHidden(Classifier):
 
         assert nabla_input.shape == self.w_input.shape
         assert nabla_output.shape == self.w_output.shape
-        assert nabla_hidden_hidden.shape == self.w_hidden_hidden
-        return (nabla_input, nabla_output)
+        assert nabla_hidden_hidden.shape == self.w_hidden_hidden.shape
+        return (nabla_input, nabla_hidden_hidden, nabla_output)
 
     # TODO: implement learn and predict functions
     def learn(self, Xtrain, ytrain):
@@ -606,17 +605,16 @@ class NeuralNetTwoHidden(Classifier):
             self.w_hidden_hidden = self.w_hidden_hidden - self.params['stepsize'] * nabla_hidden_hidden
             self.w_input = self.w_input - self.params['stepsize'] * nabla_input
             hidden, hidden_hidden, output = self.feedforward(Xtrain)
-            print("Loss: \n" + str(np.mean(np.square(ytrain - output ))))
+            #print("Loss: \n" + str(np.mean(np.square(ytrain - output ))))
                 
     def predict(self, Xtest):
-        numsamples = Xtest.shape[0]
-        ytest = np.zeros(numsamples)
-        for i in range(numsamples):
-            if self.feedforward(np.transpose(Xtest[i, :]))[1] >= 0.5:
-                ytest[i] = 1
-            else:
-                ytest[i] = 0
-        return ytest
+        prediction = np.zeros(Xtest.shape[0])
+        hidden, hidden_hidden, output = self.feedforward(Xtest)
+        for i in range(len(output)):
+            if output[i] >= 0.5:
+                prediction[i] = 1
+                
+        return prediction
 
 
 # ======================================================================
