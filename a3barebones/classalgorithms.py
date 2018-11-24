@@ -484,7 +484,6 @@ class KernelLogitReg(LogitReg):
         ### END YOUR CODE
 
         self.weights = np.zeros(Ktrain.shape[1],)
-        self.reg_weight = self.params['regwgt']
 
         ### YOUR CODE HERE
         for i in range(self.iteration):
@@ -498,9 +497,10 @@ class KernelLogitReg(LogitReg):
     def predict(self, Xtest):
         Ktest = self.kernel(Xtest, self.n)
         ytest = np.zeros(Ktest.shape[0], dtype=int)
-        preds = utils.sigmoid(np.dot(self.weights, Ktest.T))
-        ytest[preds < .5] = 0
-        ytest[preds >= .5] = 1
+        prediction = utils.sigmoid(np.dot(Ktest, self.weights))
+        for i in range(len(prediction)):
+            if prediction[i] >= 0.5:
+                ytest[i] = 1
 
         return ytest
 
