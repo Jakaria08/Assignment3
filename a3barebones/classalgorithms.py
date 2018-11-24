@@ -402,7 +402,7 @@ class KernelLogitReg(LogitReg):
         # Default: no regularization
         self.params = {'regwgt': 0.0, 'regularizer': 'None', 'kernel': 'linear'}
         self.num_of_center = 50
-        self.iteration = 10000
+        self.iteration = 100000
         self.learning_rate = .1
         self.n = None
         self.reset(parameters)
@@ -502,6 +502,120 @@ class KernelLogitReg(LogitReg):
             if prediction[i] >= 0.5:
                 ytest[i] = 1
 
+        return ytest
+    
+    
+    
+class NeuralNetTwoHidden(Classifier):
+    """ Implement a neural network with a double hidden layer. Cross entropy is
+    used as the cost function.
+
+    Parameters:
+    nh -- number of hidden units
+    transfer -- transfer function, in this case, sigmoid
+    stepsize -- stepsize for gradient descent
+    epochs -- learning epochs
+    """
+    def __init__(self, parameters={}):
+        self.params = {'nh': 16,
+                    'transfer': 'sigmoid',
+                    'stepsize': 0.01,
+                    'epochs': 1000}
+        self.reset(parameters)
+
+    def reset(self, parameters):
+        self.resetparams(parameters)
+        if self.params['transfer'] is 'sigmoid':
+            self.transfer = utils.sigmoid
+            self.dtransfer = utils.dsigmoid
+        else:
+            # For now, only allowing sigmoid transfer
+            raise Exception('NeuralNet -> can only handle sigmoid transfer, must set option transfer to string sigmoid')
+        self.w_input = None
+        self.w_hidden_hidden = None
+        self.w_output = None
+
+    def feedforward(self, inputs):
+        """
+        Returns the output of the current neural network for the given input
+        """
+        # hidden activations 5000*16 #a1
+        a_hidden = self.transfer(np.dot(inputs, self.w_input))
+        
+        # second hidden layer #a2
+        a_hidden_hidden = self.transfer(np.dot(a_hidden, self.w_hidden_hidden)) # 5000#16
+        
+        # output activations 5000*1
+        a_output = self.transfer(np.dot(a_hidden_hidden, self.w_output))
+
+        return (a_hidden, a_hidden_hidden, a_output)
+
+    def backprop(self, x, y):
+        """
+        Return a tuple ``(nabla_input, nabla_output)`` representing the gradients
+        for the cost function with respect to self.w_input and self.w_output.
+        """
+
+        ### YOUR CODE HERE
+        #forward pass
+        y = y.reshape(-1,1) # a1, a2
+        a_hidden_out, a_hidden_hidden, a_output_out = self.feedforward(x)
+        # backward propagate through the network
+        output_layer_error = a_output_out - y # error in output # D3
+        output_delta = np.multiply(np.transpose(output_layer_error), self.dtransfer(a_output_out)) #5000*1
+        output_delta = output_delta.reshape(-1,1)
+        
+        hidden_hidden_layer_error = np.dot(output_delta, np.transpose(self.w_output)) #5000*16
+        hidden_hidden_delta = np.multiply(hidden_hidden_layer_error, self.dtransfer(a_hidden_hidden)) #5000*16 
+        
+        hidden_layer_error = np.dot(hidden_hidden_delta, np.transpose(self.w_hidden_hidden)) #5000*16
+        hidden_delta = np.multiply(hidden_layer_error, self.dtransfer(a_hidden_out)) #5000*16 
+        
+        #print(np.shape(self.w_input))
+        delta_hidden_layer = np.dot(x.T, hidden_delta) #9*16
+        delta_hidden_hidden_layer = np.dot(a_hidden_out.T, hidden_hidden_delta )   #16*16
+        delta_output_layer = np.dot(a_hidden_hidden.T, output_delta ) #16*1
+        
+        nabla_input = delta_hidden_layer
+        nabla_hidden_hidden = delta_hidden_hidden_layer
+        nabla_output = delta_output_layer
+        ### END YOUR CODE
+
+        assert nabla_input.shape == self.w_input.shape
+        assert nabla_output.shape == self.w_output.shape
+        assert nabla_hidden_hidden.shape == self.w_hidden_hidden
+        return (nabla_input, nabla_output)
+
+    # TODO: implement learn and predict functions
+    def learn(self, Xtrain, ytrain):
+        """
+        Learn the weights using the training data
+        """
+        # Weight initialization
+        self.w_input = np.random.randn(Xtrain.shape[1], self.params['nh'],) 
+        self.w_hidden_hidden = np.random.randn(self.params['nh'],self.params['nh'])
+        self.w_output = np.random.randn(self.params['nh'], 1)
+        
+        for iter in range(self.params['epochs']):
+            shuffle = np.arange(Xtrain.shape[0])
+            np.random.shuffle(shuffle)
+            Xtrain = Xtrain[shuffle, :]
+            ytrain = ytrain[shuffle]
+            nabla_input, nabla_hidden_hidden, nabla_output = self.backprop(Xtrain, ytrain)
+            self.w_output = self.w_output - self.params['stepsize'] * nabla_output
+            self.w_hidden_hidden = self.w_hidden_hidden - self.params['stepsize'] * nabla_hidden_hidden
+            self.w_input = self.w_input - self.params['stepsize'] * nabla_input
+            hidden, hidden_hidden, output = self.feedforward(Xtrain)
+            print("Loss: \n" + str(np.mean(np.square(ytrain - output ))))
+                
+    def predict(self, Xtest):
+        numsamples = Xtest.shape[0]
+        ytest = np.zeros(numsamples)
+        for i in range(numsamples):
+            if self.feedforward(np.transpose(Xtest[i, :]))[1] >= 0.5:
+                ytest[i] = 1
+            else:
+                ytest[i] = 0
         return ytest
 
 

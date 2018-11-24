@@ -117,9 +117,10 @@ if __name__ == '__main__':
                  #'Naive Bayes Ones': algs.NaiveBayes({'usecolumnones': True}),
                  #'Linear Regression': algs.LinearRegressionClass(),
                  #'Logistic Regression': algs.LogitReg({'regularizer': 'l2', 'regwgt': 0.00}),
-                 #'Neural Network': algs.NeuralNet({'epochs': 100}),
-                 'KernelLogitReg': algs.KernelLogitReg(),
-                 #'KernelLogitReg1': algs.KernelLogitReg({'kernel': 'hamming'})
+                 #'Neural Network': algs.NeuralNet({'epochs': 1000}),
+                 #'KernelLogitReg': algs.KernelLogitReg(),
+                 #'KernelLogitReg1': algs.KernelLogitReg({'kernel': 'hamming'}),
+                 'Neural Network Two Hidden Layer': algs.NeuralNetTwoHidden({'epochs': 1000})
                 }
     numalgs = len(classalgs)
 
