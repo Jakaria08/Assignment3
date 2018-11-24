@@ -166,7 +166,7 @@ class LogitReg(Classifier):
 
     def __init__(self, parameters={'regularizer': 'l2'}):
         self.params = parameters
-        self.iters = 1000
+        self.iters = 10000
         self.learning_rate = .001
         self.numclasses = 2
         self.reg_weight = 0.0
@@ -520,7 +520,7 @@ class NeuralNetTwoHidden(Classifier):
         self.params = {'nh': 16,
                     'transfer': 'sigmoid',
                     'stepsize': 0.01,
-                    'epochs': 100}
+                    'epochs': 1000}
         self.reset(parameters)
 
     def reset(self, parameters):

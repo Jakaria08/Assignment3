@@ -27,17 +27,17 @@ def geterror(ytest, predictions):
 # example:
 classalgs_fold = {
   #'nn_0.01': algs.NeuralNet({ 'regwgt': 0.01, 'nh': 8, 'stepsize': 0.001, 'epochs': 100 }),
-  'nn_0.05': algs.NeuralNet({ 'regwgt': 0.05, 'nh': 16, 'stepsize': 0.01, 'epochs': 100 }),
+  'NeuralNet': algs.NeuralNet({ 'regwgt': 0.05, 'nh': 16, 'stepsize': 0.01, 'epochs': 1000 }),
   #'nn_0.1':  algs.NeuralNet({ 'regwgt': 0.1, 'nh': 32 , 'stepsize': 0.05, 'epochs': 100 }),
-  'Logistic Regression1': algs.LogitReg({'regularizer': 'l2', 'regwgt': 0.00}),
+  'Logistic Regression1': algs.LogitReg({'regularizer': 'l2', 'regwgt': 0.05}),
   #'Logistic Regression2': algs.LogitReg({'regularizer': 'l1', 'regwgt': 0.01}),
   #'Logistic Regression3': algs.LogitReg({'regularizer': 'l2', 'regwgt': 0.05}),
    }
 
 parametersc = (
         #{'regwgt': 0.0, 'nh': 4},
-        {'regwgt': 0.01, 'nh': 8},
-        {'regwgt': 0.05, 'nh': 16},
+        { 'regwgt': 0.05, 'nh': 16, 'stepsize': 0.01, 'epochs': 1000 },
+        { 'regwgt': 0.01, 'nh': 8, 'stepsize': 0.01, 'epochs': 1000 },
         #{'regwgt': 0.1, 'nh': 32},
                       )
 numparamsc = len(parametersc)
@@ -100,8 +100,71 @@ def cross_validate(K, X, Y, classalgs_fold):
 
         # Extract best parameters
         learner.reset(parametersc[bestparams])
-        print ('Best parameters for ' + learnername + ': ' + str(learner.getparams()))
-        print ('Average error for ' + learnername + ': ' + str(besterror) + ' +- ' + str(np.std(errorsc[learnername][bestparams,:])/math.sqrt(K)))
+        print ('(Cross Validation) Best parameters for ' + learnername + ': ' + str(learner.getparams()))
+        print ('(Cross Validation) Average error for ' + learnername + ': ' + str(besterror) + ' +- ' + str(np.std(errorsc[learnername][bestparams,:])/math.sqrt(K)))
+                    
+        #best_algorithm = classalgs_fold[learnername]
+        #return best_algorithm
+        
+def cross_validate_stratified(K, X, Y, classalgs_fold):
+    data_range = (int)(X.shape[0]/K)
+    fold = list()
+    yfold = list()
+    trainset = []
+    validationset = []
+    ytrain = []
+    yvalid = []
+    check = None
+    for learnername in classalgs_fold:
+        errorsc[learnername] = np.zeros((numparamsc,K))
+
+    for i in range(K):
+        fold.append(X[i*data_range:data_range*(i+1),:])
+        yfold.append(Y[i*data_range:data_range*(i+1)])
+        
+    for k in range(K):
+        check = 1
+        for j in range(K):
+            if j!= k:
+                if check:
+                    trainset = fold[k]
+                    ytrain = yfold[k]
+                    check = False
+                else:
+                    trainset = np.concatenate((trainset,fold[k]), axis = 0) 
+                    ytrain = np.concatenate((ytrain,yfold[k]), axis = 0)
+            else:
+                validationset = fold[k]
+                yvalid = yfold[k]
+                
+        for p in range(numparamsc):
+            params = parametersc[p]
+                
+            for learnername, learner in classalgs_fold.items():
+                # Reset learner for new parameters
+                learner.reset(params)
+                print ('Running learner = ' + learnername + ' on parameters ' + str(learner.getparams()))
+                # Train model
+                learner.learn(trainset, ytrain)
+                # Validate model
+                predictions = learner.predict(validationset)
+                error = geterror(yvalid, predictions)
+                print ('Error for ' + learnername + ': ' + str(error))
+                errorsc[learnername][p,k] = error
+            
+    for learnername, learner in classalgs_fold.items():
+        besterror = np.mean(errorsc[learnername][0,:])
+        bestparams = 0
+        for p in range(numparamsc):
+            aveerror = np.mean(errorsc[learnername][p,:])
+            if aveerror < besterror:
+                besterror = aveerror
+                bestparams = p
+
+        # Extract best parameters
+        learner.reset(parametersc[bestparams])
+        print ('(Cross Validation Stratified) Best parameters for ' + learnername + ': ' + str(learner.getparams()))
+        print ('(Cross Validation Stratified) Average error for ' + learnername + ': ' + str(besterror) + ' +- ' + str(np.std(errorsc[learnername][bestparams,:])/math.sqrt(K)))
                     
         #best_algorithm = classalgs_fold[learnername]
         #return best_algorithm
@@ -120,7 +183,7 @@ if __name__ == '__main__':
                  #'Neural Network': algs.NeuralNet({'epochs': 1000}),
                  #'KernelLogitReg': algs.KernelLogitReg(),
                  #'KernelLogitReg1': algs.KernelLogitReg({'kernel': 'hamming'}),
-                 'Neural Network Two Hidden Layer': algs.NeuralNetTwoHidden({'epochs': 10000})
+                 'Neural Network Two Hidden Layer': algs.NeuralNetTwoHidden({'epochs': 1000})
                 }
     numalgs = len(classalgs)
 
@@ -187,3 +250,4 @@ if __name__ == '__main__':
 ################# Cross validation k fold
         
     #cross_validate(5, trainset[0], trainset[1], classalgs_fold)
+    #cross_validate_stratified(5, trainset[0], trainset[1], classalgs_fold)
